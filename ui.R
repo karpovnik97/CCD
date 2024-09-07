@@ -7,9 +7,7 @@ source("data.R")
 
 ### Building user interface 
 
-current_date <- Sys.Date()
-current_year <- format(current_date, "%Y")
-current_year <- as.numeric(current_year)
+current_year <- as.numeric(format(Sys.Date(), "%Y"))
 
 ui <- dashboardPage(
   skin = "black",

@@ -1,17 +1,72 @@
-#libraries
-
+# Required libraries
 library(tidyverse)
 library(plotly)
 library(readxl)
 library(readr)
 library(httr) 
+library(future)
+library(promises)
 library(viridis)
+
+# Plan for async execution
 
 
 ### Importing and tidying up the data
 
-# most of the data is in csv or excel format that will be downloaded from internet, only one data frame has to be extracted from zip file 
+
+# Async download for Species_USA (method is justified since it takes long for the file to be downlaoded)
+plan(multisession) 
+species_usa_future <- future({
+  Species_USA <- read.csv("https://ecos.fws.gov/ecp/pullreports/catalog/species/report/species/export?format=csv&columns=%2Fspecies%40sn%2Cstatus%2Clisting_date%2Cgn%3B%2Fspecies%2Fcurrent_range_county%40state_name&sort=%2Fspecies%40sn%20asc")
+  Species_USA
+})
+
+
+species_usa_future %...>% { Species_USA ->
+    print("started processing Species_USA")
+    # Testing for missing values
+    # anyNA(Species_USA)
+    # Species_USA[complete.cases(Species_USA) == FALSE, ]
+    # colSums(is.na(Species_USA[colSums(is.na(Species_USA)) > 0]))
+    
+    # Formatting ESA Listing Status column
+    Species_USA$`ESA Listing Status` <- factor(Species_USA$`ESA Listing Status`, 
+                                               levels = c("Endangered","Threatened","Species of Concern",
+                                                          "Proposed Endangered","Proposed Threatened",
+                                                          "Resolved Taxon","Under Review","Candidate",
+                                                          "Status Undefined","Recovery","Not Listed"), 
+                                               ordered = TRUE)
+    
+    # Formatting ESA Listing Date column to Year only
+    Species_USA$`ESA Listing Date` <- as.Date(Species_USA$`ESA Listing Date`, "%m-%d-%Y")
+    Species_USA$`ESA Listing Date` <- format(Species_USA$`ESA Listing Date`, "%Y")
+    Species_USA$`ESA Listing Date` <- as.numeric(Species_USA$`ESA Listing Date`)
+    
+    # Replacing NAs with more meaningful values
+    Species_USA$`ESA Listing Status` <- if_else(is.na(Species_USA$`ESA Listing Status`), "Else", Species_USA$`ESA Listing Status`)
+    Species_USA$`State Name` <- if_else(is.na(Species_USA$`State Name`), "State absent", Species_USA$`State Name`)
+    Species_USA$`Species Group` <- as.factor(Species_USA$`Species Group`)
+    
+    # Sorting (optional)
+    Choices_USA <- c("Endangered","Threatened","Species of Concern",
+                     "Resolved Taxon","Under Review","Candidate",
+                     "Status Undefined","Recovery","Not Listed")
+    
+    # Visualization: Bar plot of species by ESA Listing Status
+    ggplotly(
+      ggplot(Species_USA) +
+        aes(y = `ESA Listing Status`) +
+        geom_bar()
+    )
+    
+    print("end of processinng")
+}
+
+
 ## Sea Levels  
+print("sea levels")
+
+# most of the data is in csv or excel format that will be downloaded from internet, only one data frame has to be extracted from zip file 
 
 Sea_Levels <-read_csv("https://opendata.arcgis.com/datasets/b84a7e25159b4c65ba62d3f82c605855_0.csv",col_types = cols(
   
@@ -38,7 +93,7 @@ Sea_Levels <- bind_rows(Sea_Levels, Sea_Levels %>%
                           relocate(Measure))
 
 # Trend in mean sea levels in different regions
-Sea_Levels$Measure
+
 
 # How is global sea levels changing? 
 ggplot(Sea_Levels %>% filter(Measure %in% c("World","World2"),Year>2015))+
@@ -59,6 +114,7 @@ ggplot(Sea_Levels %>% filter(Measure %in% c("World","World2"),Year>2015))+
 
 
 ## Forest Cover  
+print("Forest Cover")
 
 # Units - 1000 HA, Index, Million tonnes, Percent
 Forest_Area <- read_csv("https://opendata.arcgis.com/datasets/66dad9817da847b385d3b2323ce1be57_0.csv", col_types = cols(
@@ -83,54 +139,6 @@ ggplot(Forest_Area %>% filter(Indicator=="Forest area",Country %in% c("Azerbaija
 # For example area that forest takes is increasing in Azerbaijan while its stable in Georgia
 
 
-
-
-## Threatened_Species in USA
-
-Species_USA <- read_csv("https://ecos.fws.gov/ecp/pullreports/catalog/species/report/species/export?format=csv&columns=%2Fspecies%40sn%2Cstatus%2Clisting_date%2Cgn%3B%2Fspecies%2Fcurrent_range_county%40state_name&sort=%2Fspecies%40sn%20asc", 
-                        col_types = cols(`Scientific Name_url` = col_skip()))
-
-# Formatting dataframe columns
-
-# testing 
-# anyNA(Species_USA)
-
-# Species_USA[complete.cases(Species_USA)==FALSE,]
-
-# colSums(is.na(Species_USA[colSums(is.na(Species_USA)) > 0]))
-
-Species_USA$`ESA Listing Status` <- Species_USA$`ESA Listing Status` %>% factor( 
-  levels = c("Endangered","Threatened","Species of Concern",
-             "Proposed Endangered","Proposed Threatened",
-             "Resolved Taxon","Under Review","Candidate ",
-             "Status Undefined","Recovery","Not Listed "), ordered = TRUE)
-
-
-# Formatting dataframe columns date column so it displays Year only
-Species_USA$`ESA Listing Date` <- as.Date(Species_USA$`ESA Listing Date` , "%m-%d-%Y")
-Species_USA$`ESA Listing Date` <- format(Species_USA$`ESA Listing Date`, "%Y")
-Species_USA$`ESA Listing Date` <- as.numeric(Species_USA$`ESA Listing Date`)
-
-# replacing NAs with more meaningful values  ?if_else()
-Species_USA$`ESA Listing Status` <- if_else(is.na(Species_USA$`ESA Listing Status`), "Else", Species_USA$`ESA Listing Status`)
-#Species_USA$`ESA Listing Date` <- if_else(is.na(Species_USA$`ESA Listing Date`), "Date absent", Species_USA$`ESA Listing Date`)
-Species_USA$`State Name` <- if_else(is.na(Species_USA$`State Name`), "State absent", Species_USA$`State Name`)
-
-Species_USA$`Species Group` <- as.factor(Species_USA$`Species Group`)
-
-#sort(decreasing = TRUE, table(Species_USA$`ESA Listing Status`))
-Choices_USA <- c("Endangered","Threatened","Species of Concern",
-                 "Resolved Taxon","Under Review","Candidate ",
-                 "Status Undefined","Recovery","Not Listed ")
-# Exploring
-
-# What number of species are endangered in USA? 
-ggplotly(
-  ggplot(Species_USA)+
-    aes(y=`ESA Listing Status`)+
-    geom_bar())
-
-# aproximatelly 14 000
 
 
 
@@ -187,7 +195,7 @@ ggplot(Disasters %>% filter(Country %in% c("United States","India","Philippines"
 
 
 
-
+print("Air Pollution")
 ## Air pollution Data
 temp_file <- tempfile(fileext = ".xls")  # temporary file
 curl::curl_download("https://api.worldbank.org/v2/en/indicator/EN.ATM.PM25.MC.M3?downloadformat=excel", temp_file)
@@ -255,7 +263,7 @@ ggplotly(ggplot(Air_Pollution %>% filter(Value>70))+
 
 
 
-
+print("Temperature Change")
 ## Temperature_Change
 
 Temperature_Change <- read_csv("https://opendata.arcgis.com/datasets/4063314923d74187be9596f10d034914_0.csv",col_types = cols(
@@ -350,7 +358,7 @@ TC_bot_1 <- strsplit(
 
 
 
-
+print("CO2 Concentrations")
 ## Atmospheric CO2 Concentrations
 
 CO2_Concentrations <- read_csv("https://opendata.arcgis.com/datasets/9c3764c0efcc4c71934ab3988f219e0e_0.csv", col_types = cols(
@@ -386,7 +394,56 @@ ggplot(CO2_Concentrations)+
 
 
 
+
+
+
+
+
+## CO2_Emissions 
+print("CO2 Emissions")
+
+tempfile <- tempfile(fileext = ".xls")
+curl::curl_download("https://api.worldbank.org/v2/en/indicator/EN.ATM.CO2E.PC?downloadformat=excel", tempfile)
+CO2_Emissions <- read_excel(tempfile, skip = 3)
+
+unlink(tempfile) # Remove temporal file'
+
+
+# Cheking NAs and removing years/columns with no value
+
+# is.na(CO2_Emissions)
+
+colSums(is.na(CO2_Emissions[colSums(is.na(CO2_Emissions)) > 0]))
+
+CO2_Emissions <- CO2_Emissions[,-c(3,4)] 
+
+CO2_Emissions <- CO2_Emissions[,-c(2:32,64,65,66)] 
+
+# transforming data frame 
+CO2_Emissions <- CO2_Emissions %>% 
+  pivot_longer(c(`1990`,`1991`,`1992`,`1993`,`1994`,`1995`,`1996`,`1997`,`1998`,
+                 `1999`, `2000`,`2001`,`2002`,`2003`,`2004`,`2005`,`2006`,`2007`,
+                 `2008`,`2009`, `2010`,`2011`,`2012`,`2013`,`2014`,`2015`,`2016`,
+                 `2017`,`2018`,`2019`,`2020`) ,names_to="Year",values_to="Value")
+
+# Formatting dataframe columns
+CO2_Emissions$Year <- as.integer(CO2_Emissions$Year)
+
+# Exploring
+
+# Is CO2 emissions increasing over time in United States?
+ggplot(CO2_Emissions %>% filter(`Country Name`=="United States"))+
+  aes(x=Year,y=Value/1000)+
+  geom_bar(stat="identity")
+
+
+
+
+
+
+
 ## Threatened_Species in EU
+print("Species EU")
 
 # Downloading temporary zip file and exacting needed csv file 
 csv_filepath <- tempfile(fileext = ".csv")
@@ -476,50 +533,14 @@ ggplot(Threatened_Species)+
 
 
 
-## CO2_Emissions 
 
-tempfile <- tempfile(fileext = ".xls")
-curl::curl_download("https://api.worldbank.org/v2/en/indicator/EN.ATM.CO2E.PC?downloadformat=excel", tempfile)
-CO2_Emissions <- read_excel(tempfile, skip = 3)
-
-unlink(tempfile) # Remove temporal file'
-
-
-# Cheking NAs and removing years/columns with no value
-
-# is.na(CO2_Emissions)
-
-colSums(is.na(CO2_Emissions[colSums(is.na(CO2_Emissions)) > 0]))
-
-CO2_Emissions <- CO2_Emissions[,-c(3,4)] 
-
-CO2_Emissions <- CO2_Emissions[,-c(2:32,64,65,66)] 
-
-# transforming data frame 
-CO2_Emissions <- CO2_Emissions %>% 
-  pivot_longer(c(`1990`,`1991`,`1992`,`1993`,`1994`,`1995`,`1996`,`1997`,`1998`,
-                 `1999`, `2000`,`2001`,`2002`,`2003`,`2004`,`2005`,`2006`,`2007`,
-                 `2008`,`2009`, `2010`,`2011`,`2012`,`2013`,`2014`,`2015`,`2016`,
-                 `2017`,`2018`,`2019`,`2020`) ,names_to="Year",values_to="Value")
-
-# Formatting dataframe columns
-CO2_Emissions$Year <- as.integer(CO2_Emissions$Year)
-
-# Exploring
-
-# Is CO2 emissions increasing over time in United States?
-ggplot(CO2_Emissions %>% filter(`Country Name`=="United States"))+
-  aes(x=Year,y=Value/1000)+
-  geom_bar(stat="identity")
-
-
-
+print("End")
 # Data for Valueboxes
 # Number of values, observations and variables anaized
-info1 <- count(Air_Pollution)+count(Species_USA)+count(Disasters)+count(Sea_Levels)+count(Temperature_Change)+count(Threatened_Species)+count(Forest_Area)+count(CO2_Concentrations)+count(CO2_Emissions)
-info2 <- length(Air_Pollution)+length(Species_USA)+length(Disasters)+length(Sea_Levels)+length(Temperature_Change)+length(Threatened_Species)+length(Forest_Area)+length(CO2_Concentrations)+length(CO2_Emissions)
-info3 <- length(Species_USA)*count(Species_USA)+length(Air_Pollution)*count(Air_Pollution)+length(Disasters)*count(Disasters)+length(Sea_Levels)*count(Sea_Levels)+length(Temperature_Change)*length(Temperature_Change)+length(Threatened_Species)*count(Threatened_Species)+length(Forest_Area)*count(Forest_Area)+count(CO2_Concentrations)*length(CO2_Concentrations)+count(CO2_Emissions)*length(CO2_Emissions)
+#info1 <- count(Air_Pollution)+count(Species_USA)+count(Disasters)+count(Sea_Levels)+count(Temperature_Change)+count(Threatened_Species)+count(Forest_Area)+count(CO2_Concentrations)+count(CO2_Emissions)
+#info2 <- length(Air_Pollution)+length(Species_USA)+length(Disasters)+length(Sea_Levels)+length(Temperature_Change)+length(Threatened_Species)+length(Forest_Area)+length(CO2_Concentrations)+length(CO2_Emissions)
+#info3 <- length(Species_USA)*count(Species_USA)+length(Air_Pollution)*count(Air_Pollution)+length(Disasters)*count(Disasters)+length(Sea_Levels)*count(Sea_Levels)+length(Temperature_Change)*length(Temperature_Change)+length(Threatened_Species)*count(Threatened_Species)+length(Forest_Area)*count(Forest_Area)+count(CO2_Concentrations)*length(CO2_Concentrations)+count(CO2_Emissions)*length(CO2_Emissions)
 
 #removing temporary data
-rm(temp,Year,`Threat Group`,url,zip_files,zip_url,csv_entry,csv_filename,csv_filepath,destfile,iso2_to_full,tempfile,temp_file,response)
+#rm(temp,Year,`Threat Group`,url,zip_files,zip_url,csv_entry,csv_filename,csv_filepath,destfile,iso2_to_full,tempfile,temp_file,response)
 
