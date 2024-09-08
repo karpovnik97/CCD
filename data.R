@@ -9,58 +9,17 @@ library(promises)
 library(viridis)
 
 # Plan for async execution
-
-
-### Importing and tidying up the data
-
-
-# Async download for Species_USA (method is justified since it takes long for the file to be downlaoded)
 plan(multisession) 
+
+# Async download for Species_USA
+print("Species USA")
+
 species_usa_future <- future({
-  Species_USA <- read.csv("https://ecos.fws.gov/ecp/pullreports/catalog/species/report/species/export?format=csv&columns=%2Fspecies%40sn%2Cstatus%2Clisting_date%2Cgn%3B%2Fspecies%2Fcurrent_range_county%40state_name&sort=%2Fspecies%40sn%20asc")
-  Species_USA
+  read_csv("https://ecos.fws.gov/ecp/pullreports/catalog/species/report/species/export?format=csv&columns=%2Fspecies%40sn%2Cstatus%2Clisting_date%2Cgn%3B%2Fspecies%2Fcurrent_range_county%40state_name&sort=%2Fspecies%40sn%20asc", 
+           col_types = cols(`Scientific Name_url` = col_skip()))
 })
 
 
-species_usa_future %...>% { Species_USA ->
-    print("started processing Species_USA")
-    # Testing for missing values
-    # anyNA(Species_USA)
-    # Species_USA[complete.cases(Species_USA) == FALSE, ]
-    # colSums(is.na(Species_USA[colSums(is.na(Species_USA)) > 0]))
-    
-    # Formatting ESA Listing Status column
-    Species_USA$`ESA Listing Status` <- factor(Species_USA$`ESA Listing Status`, 
-                                               levels = c("Endangered","Threatened","Species of Concern",
-                                                          "Proposed Endangered","Proposed Threatened",
-                                                          "Resolved Taxon","Under Review","Candidate",
-                                                          "Status Undefined","Recovery","Not Listed"), 
-                                               ordered = TRUE)
-    
-    # Formatting ESA Listing Date column to Year only
-    Species_USA$`ESA Listing Date` <- as.Date(Species_USA$`ESA Listing Date`, "%m-%d-%Y")
-    Species_USA$`ESA Listing Date` <- format(Species_USA$`ESA Listing Date`, "%Y")
-    Species_USA$`ESA Listing Date` <- as.numeric(Species_USA$`ESA Listing Date`)
-    
-    # Replacing NAs with more meaningful values
-    Species_USA$`ESA Listing Status` <- if_else(is.na(Species_USA$`ESA Listing Status`), "Else", Species_USA$`ESA Listing Status`)
-    Species_USA$`State Name` <- if_else(is.na(Species_USA$`State Name`), "State absent", Species_USA$`State Name`)
-    Species_USA$`Species Group` <- as.factor(Species_USA$`Species Group`)
-    
-    # Sorting (optional)
-    Choices_USA <- c("Endangered","Threatened","Species of Concern",
-                     "Resolved Taxon","Under Review","Candidate",
-                     "Status Undefined","Recovery","Not Listed")
-    
-    # Visualization: Bar plot of species by ESA Listing Status
-    ggplotly(
-      ggplot(Species_USA) +
-        aes(y = `ESA Listing Status`) +
-        geom_bar()
-    )
-    
-    print("end of processinng")
-}
 
 
 ## Sea Levels  
@@ -70,10 +29,10 @@ print("sea levels")
 
 Sea_Levels <-read_csv("https://opendata.arcgis.com/datasets/b84a7e25159b4c65ba62d3f82c605855_0.csv",col_types = cols(
   
-  ObjectId = col_skip(),Unit=col_skip(),Country = col_skip(), 
-  ISO3 = col_skip(),ISO2 = col_skip(), Indicator = col_skip(),
-  Source = col_skip(), CTS_Code = col_skip(),CTS_Name = col_skip(), 
-  CTS_Full_Descriptor = col_skip(),Date = col_date(format = "D%m/%d/%Y"),Value = col_number()))
+ObjectId = col_skip(),Unit=col_skip(),Country = col_skip(), 
+ISO3 = col_skip(),ISO2 = col_skip(), Indicator = col_skip(),
+Source = col_skip(), CTS_Code = col_skip(),CTS_Name = col_skip(), 
+CTS_Full_Descriptor = col_skip(),Date = col_date(format = "D%m/%d/%Y"),Value = col_number()))
 
 # Formatting dataframe columns 
 
@@ -453,7 +412,7 @@ zip_files <- unzip(csv_filepath, list = TRUE)
 csv_entry <- zip_files[grep("Article17_2020_data_pressures_threats.csv", zip_files$Name, fixed = TRUE), ]
 unzip(csv_filepath, files = csv_entry$Name, exdir = tempdir())
 
-Threatened_Species <- read_csv(file.path(tempdir(), csv_entry$Name))
+Threatened_Species <- read_csv(file.path(tempdir(), csv_entry$Name), show_col_types = FALSE)
 
 unlink(csv_filepath) # Remove temp file
 
@@ -514,10 +473,10 @@ iso2_to_full <- function(iso2_names) {
 
 Threatened_Species <- mutate(Threatened_Species,`Country Name`=iso2_to_full(Threatened_Species$country))
 
-# cheeking for  NAs
+# cheeking for NAs
 
-anyNA(Threatened_Species)
-Threatened_Species$country[complete.cases(Threatened_Species)==FALSE]
+# anyNA(Threatened_Species)
+# Threatened_Species$country[complete.cases(Threatened_Species)==FALSE]
 
 # Exploring
 
@@ -530,6 +489,45 @@ ggplot(Threatened_Species)+
 
 
 
+#Formating Species_USA data 
+print("Species USA")
+# Ensure the future is resolved
+Species_USA <- value(species_usa_future)
+
+# Testing for missing values
+# anyNA(Species_USA)
+# Species_USA[complete.cases(Species_USA) == FALSE, ]
+# colSums(is.na(Species_USA[colSums(is.na(Species_USA)) > 0]))
+
+# Formatting ESA Listing Status column
+Species_USA$`ESA Listing Status` <- factor(Species_USA$`ESA Listing Status`, 
+                                           levels = c("Endangered","Threatened","Species of Concern",
+                                                      "Proposed Endangered","Proposed Threatened",
+                                                      "Resolved Taxon","Under Review","Candidate",
+                                                      "Status Undefined","Recovery","Not Listed"), 
+                                           ordered = TRUE)
+
+# Formatting ESA Listing Date column to Year only
+Species_USA$`ESA Listing Date` <- as.Date(Species_USA$`ESA Listing Date`, "%m-%d-%Y")
+Species_USA$`ESA Listing Date` <- format(Species_USA$`ESA Listing Date`, "%Y")
+Species_USA$`ESA Listing Date` <- as.numeric(Species_USA$`ESA Listing Date`)
+
+# Replacing NAs with more meaningful values
+Species_USA$`ESA Listing Status` <- if_else(is.na(Species_USA$`ESA Listing Status`), "Else", Species_USA$`ESA Listing Status`)
+Species_USA$`State Name` <- if_else(is.na(Species_USA$`State Name`), "State absent", Species_USA$`State Name`)
+Species_USA$`Species Group` <- as.factor(Species_USA$`Species Group`)
+
+# Sorting (optional)
+Choices_USA <- c("Endangered","Threatened","Species of Concern",
+                 "Resolved Taxon","Under Review","Candidate",
+                 "Status Undefined","Recovery","Not Listed")
+
+# Visualization: Bar plot of species by ESA Listing Status
+ggplotly(
+  ggplot(Species_USA) +
+    aes(y = `ESA Listing Status`) +
+    geom_bar()
+)
 
 
 
