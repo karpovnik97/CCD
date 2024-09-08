@@ -537,10 +537,10 @@ ggplot(Threatened_Species)+
 print("End")
 # Data for Valueboxes
 # Number of values, observations and variables anaized
-#info1 <- count(Air_Pollution)+count(Species_USA)+count(Disasters)+count(Sea_Levels)+count(Temperature_Change)+count(Threatened_Species)+count(Forest_Area)+count(CO2_Concentrations)+count(CO2_Emissions)
-#info2 <- length(Air_Pollution)+length(Species_USA)+length(Disasters)+length(Sea_Levels)+length(Temperature_Change)+length(Threatened_Species)+length(Forest_Area)+length(CO2_Concentrations)+length(CO2_Emissions)
-#info3 <- length(Species_USA)*count(Species_USA)+length(Air_Pollution)*count(Air_Pollution)+length(Disasters)*count(Disasters)+length(Sea_Levels)*count(Sea_Levels)+length(Temperature_Change)*length(Temperature_Change)+length(Threatened_Species)*count(Threatened_Species)+length(Forest_Area)*count(Forest_Area)+count(CO2_Concentrations)*length(CO2_Concentrations)+count(CO2_Emissions)*length(CO2_Emissions)
+info1 <- count(Air_Pollution)+count(Species_USA)+count(Disasters)+count(Sea_Levels)+count(Temperature_Change)+count(Threatened_Species)+count(Forest_Area)+count(CO2_Concentrations)+count(CO2_Emissions)
+info2 <- length(Air_Pollution)+length(Species_USA)+length(Disasters)+length(Sea_Levels)+length(Temperature_Change)+length(Threatened_Species)+length(Forest_Area)+length(CO2_Concentrations)+length(CO2_Emissions)
+info3 <- length(Species_USA)*count(Species_USA)+length(Air_Pollution)*count(Air_Pollution)+length(Disasters)*count(Disasters)+length(Sea_Levels)*count(Sea_Levels)+length(Temperature_Change)*length(Temperature_Change)+length(Threatened_Species)*count(Threatened_Species)+length(Forest_Area)*count(Forest_Area)+count(CO2_Concentrations)*length(CO2_Concentrations)+count(CO2_Emissions)*length(CO2_Emissions)
 
 #removing temporary data
-#rm(temp,Year,`Threat Group`,url,zip_files,zip_url,csv_entry,csv_filename,csv_filepath,destfile,iso2_to_full,tempfile,temp_file,response)
+rm(temp,Year,`Threat Group`,url,zip_files,zip_url,csv_entry,csv_filename,csv_filepath,destfile,iso2_to_full,tempfile,temp_file,response)
 

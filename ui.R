@@ -27,7 +27,7 @@ ui <- dashboardPage(
       menuItem("Temperature Change", tabName = "TC", icon = icon("sun")),
       menuItem("CO2 Concentrations", tabName = "CC", icon = icon("cloud")),
       uiOutput("sidebarinput"),  # This item will change depending on the tab selected
-      sliderInput("AllDate", sep = "", label = "Date Range", min = 1960, max = current_year, step = 5, value = c(1960, 2022))
+      sliderInput("AllDate", sep = "", label = "Date Range", min = 1960, max = current_year, step = 5, value = c(1960, current_year))
     )
   ),
   dashboardBody(
